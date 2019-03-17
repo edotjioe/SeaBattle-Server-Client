@@ -1,3 +1,4 @@
+/*
 //
 // Created by edotj on 3/17/2019.
 //
@@ -56,6 +57,8 @@ int Server::initialise() {
     {
         client[i] = { -1, "", INVALID_SOCKET };
     }
+
+    return 0;
 }
 
 int Server::run() {
@@ -95,6 +98,8 @@ int Server::run() {
         send(incoming, msg.c_str(), strlen(msg.c_str()), 0);
         std::cout << msg << std::endl;
     }
+
+    return 0;
 }
 
 send_message Server::construct_message(string message) {
@@ -183,6 +188,8 @@ int Server::command(string message, client_type &send_client) {
         else
             return 0;
     }
+
+    return 0;
 }
 
 int Server::process_client(client_type &new_client, vector<client_type> &client_array, thread &thread)
@@ -275,3 +282,4 @@ int Server::process_client(client_type &new_client, vector<client_type> &client_
 
     return 0;
 }
+*/
