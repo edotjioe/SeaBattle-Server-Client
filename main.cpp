@@ -7,16 +7,11 @@
 using namespace std;
 
 int main() {
-    bool list_action = false;
-    bool lobby_action = false;
-    bool attacking_action = false;
-    bool scan_action = false;
-    bool move_action = false;
-    bool place_action = false;
-    bool leave_action = false;
+    bool list_action = false, lobby_action = false, attacking_action = false, scan_action = false, move_action = false,
+        place_action = false, leave_action = false, lobby_connection = false;
     string action_input;
-    int x, y;
-    int lobby_number;
+    int x, y, ship, direction, lobby_number;
+    char move_type;
 
 
     //FIX ME    Wait and receive a message every little while until a message is received stating that it is your turn.
@@ -30,12 +25,10 @@ int main() {
 
         if (action_input == "LIST") {
             list_action = true;
-            cout << "List test 1";
             player_turn = false;
         }
         else if (action_input == "LOBBY") {
             lobby_action = true;
-            cout << "lobby test ";
             player_turn = false;
         }
         else if (action_input == "ATTACK") {
@@ -68,25 +61,34 @@ int main() {
     while(list_action == true) {
         cout << "Retrieving the list of players in the current session..." << endl;
         //FIX ME    Wait a short while, retrieve a message back with the user list, copy it to a string and print it to the client
-
+        //...
         list_action = false;
     }
 
 
     //LOBBY
     while(lobby_action == true) {
-        //...
+        cout << "What lobby would you like to join?" << endl;
+
+        /*while (lobby_connection == false;) {
+            cin >> lobby_number;
+            if (message received == success) {
+               cout << "You have successfully connected to lobby " << lobby_number << "!" << endl;
+               lobby_connection = true;
+        }*/
+        //FIX ME    Send the lobby number to the server, wait for a response.
+        //FIX ME    If the response is a success, connect to the lobby, if not, give the error message and enter a new lobby_number
+        lobby_action = false;
     }
 
 
     //ATTACK
-    while (attacking_action == 1) {
-        cout << "What coordinates would you like to target?" << endl;
+    while (attacking_action) {
+        cout << "Which coordinates would you like to target?" << endl;
         cin >> x >> y;      //FIX ME    possibly add in a try-catch block, inputting e.g. letters will cause the program to get stuck in an infinite loop
 
         if ((x >= 0) && (x < 12) && (y >= 0) && (y <= 12)) {
-            cout << "These are correct coordinates!" << endl;
-            cout << "You chose to attack <" << x << ", " << y << ">" << endl;
+            cout << "You chose to attack <" << x << ", " << y << ">!" << endl;
             //FIX ME    Send_message "ATTACK x y" to server, server will pick [6] in the string as x, and [8] as y
             //FIX ME    Wait a short while, receive message back stating whether it was a success, copy the message to a string and print it to the client
             attacking_action = false;
@@ -113,7 +115,39 @@ int main() {
 
     //MOVE
     while(move_action == true) {
-        //...
+        cout << "What ship would you like to move?" << endl;
+        while (cin) {
+            cin >> ship;
+            if ((ship >= 1 ) && (ship <= 5)) {
+                break;
+            }
+            else {
+                cout << "You have given an incorrect ship-number, please try again." << endl;
+                cin.ignore();
+            }
+        }
+
+        cout << "Do you want to rotate (r) or move your ship (m)?" << endl;
+
+        while (cin) {
+            cin >> move_type;
+            if ((move_type != 'r') && (move_type != 'm')) {
+                cout << "You have given an invalid move type, you can rotate (r) or move (m)." << endl;
+                cin.ignore();
+            }
+            else {
+                break;
+            }
+        }
+
+        if (move_type == 'm') {
+            cout << "In what direction would you like to move your ship?" << endl;
+        }
+        else if (move_type == 'r') {
+            cout << "You used rotate." << endl;
+        }
+
+
         move_action = false;
     }
 
@@ -134,15 +168,11 @@ int main() {
 
 
     if (player_turn == false) {
-        //FIX ME    wait and receive a message every little while until a message is received stating that it is your turn
-        //FIX ME    once that specific message is received, set player_turn back to true to get into the loops again for an action
+        //FIX ME    wait and receive a message every little while until a message is received stating that it is your turn, or that the game is over
+        //FIX ME    once a message is received, act accordingly, either setting the player_turn back to true, or stating that the game is over and player defeated
     }
-
-
 
 
     return 0;
 }
 
-
-//
