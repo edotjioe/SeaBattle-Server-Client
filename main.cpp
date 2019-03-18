@@ -4,639 +4,145 @@
 #include <string>
 #include <thread>
 #include <vector>
-
-#pragma comment (lib, "Ws2_32.lib")
-
-#define IP_ADDRESS "127.0.0.1"
-#define DEFAULT_PORT "27015"
-#define DEFAULT_BUFLEN 512
-#define DEFAULT_LEN_HELLO 11
-#define MAX_CLIENTS 8
-#define MAX_LOBBY 4
-#define MAX_SHIPS 3
-#define MAX_PLAYERPLOBBY 2
-
 using namespace std;
 
-struct client_type
-{
-    int id = 0;
-    string name;
-    SOCKET socket;
-    int inGame = -1;
-};
-
-struct send_message
-{
-    string name;
-    string message;
-};
-
-struct ship {
-    int x = -1;
-    int y = -1;
-    int r = 0;
-    int a = 1;
-};
-
-struct player {
-    int id = -1;
-    ship ships[MAX_SHIPS];
-    int turn = 1;
-};
-
-struct lobby {
-    player players[MAX_PLAYERPLOBBY];
-    int started[MAX_PLAYERPLOBBY] = {0, 0};
-    int stage1 = 0;
-};
-
-const char OPTION_VALUE = 1;
-vector<client_type> client(MAX_CLIENTS);
-vector<lobby> list_lobby(MAX_LOBBY);
-
-//Function Prototypes
-int process_client(client_type &new_client, vector<client_type> &client_array, thread &thread);
-int main();
-int command_lobby(string message, client_type &send_client, vector<client_type> &client_array);
-int command_ingame(string message, client_type &send_client, vector<client_type> &client_array);
-int check_user_command(string message);
-
-send_message construct_message(string message);
-
-send_message construct_message(string message) {
-    int end_name, failed = 0;
-    send_message sendMessage;
-    sendMessage.name = "";
-    sendMessage.message = "";
-    for (int i = 5; i < message.size(); ++i) {
-        if (message[i] == ' ') {
-            end_name = i;
-            break;
-        } else if (message[i] == '\n')
-            failed = 1;
-        else
-            sendMessage.name += message[i];
-    }
-
-    if (!failed)
-        sendMessage.message = string(&message[end_name], &message[message.size()]);
-
-    return sendMessage;
-}
-
-int check_user_command(string message) {
-    char buffer[DEFAULT_BUFLEN];
-    strcpy(buffer, message.c_str());
-
-    if (message[strlen(message.c_str()) - 1] != '\n')
-        return 0;
-
-    if (!strncmp(buffer, "HELLO-FROM", 10))
-        return 1;
-    else if (!strncmp(buffer, "LIST", 4))
-        return 2;
-    else if (!strncmp(buffer, "LOBBY", 5))
-        return 3;
-    else if (!strncmp(buffer, "ATTACK", 6))
-        return 4;
-    else if (!strncmp(buffer, "SCAN", 4))
-        return 5;
-    else if (!strncmp(buffer, "MOVE", 4))
-        return 6;
-    else if (!strncmp(buffer, "PLACE", 5))
-        return 7;
-    else if (!strncmp(buffer, "LEAVE", 5))
-        return 8;
-    else if (!strncmp(buffer, "START", 5))
-        return 9;
-    else if (!strncmp(buffer, "DELIVERY", 8))
-        return 10;
-    else
-        return -1;
-}
-
-int command_lobby(string message, client_type &send_client, vector<client_type> &client_array) {
-    char output[DEFAULT_BUFLEN];
-    memset(output, 0, DEFAULT_BUFLEN);
-    cout << "USER-LOBBY: " << message;
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    int player2 = list_lobby[send_client.inGame].players[0].id == send_client.id;
-    int player = (player2 + 1) % 2;
-
-    int user_command = check_user_command(message);
+int main() {
+    bool list_action = false;
+    bool lobby_action = false;
+    bool attacking_action = false;
+    bool scan_action = false;
+    bool move_action = false;
+    bool place_action = false;
+    bool leave_action = false;
+    string action_input;
+    int x, y;
+    int lobby_number;
 
 
-    switch (user_command) {
-        case 0: {
-            strcpy(output, "BAD-RQST\n");
-            if (send(send_client.socket, output, strlen(output), 0) > 0)
-                return 1;
-            else
-                return 0;
+    //FIX ME    Wait and receive a message every little while until a message is received stating that it is your turn.
+    bool player_turn = true;
+
+
+    //ACTION CHOICE
+    while (player_turn == true) {
+        cout << "Action please: " << endl;
+        cin >> action_input;
+
+        if (action_input == "LIST") {
+            list_action = true;
+            cout << "List test 1";
+            player_turn = false;
         }
-        //LIST lobby
-        case 2: {
-            strcpy(output, "LIST ");
-            for (int i = 0; i < MAX_LOBBY; i) {
-                for (int j = 0; j < MAX_PLAYERPLOBBY; ++j) {
-                    if (list_lobby[i].players[j].id >= 0) {
-                        cout << "Adding " << i;
-                        break;
-                    }
-                }
-            }
-            strcat(output, "\n");
-            cout << output << endl;
-            send(send_client.socket, output, strlen(output), 0);
-            return 1;
+        else if (action_input == "LOBBY") {
+            lobby_action = true;
+            cout << "lobby test ";
+            player_turn = false;
         }
-        //JOIN lobby
-        case 3: {
-            cout << "i " << send_client.inGame << endl;
-            if (send_client.inGame < 0) {
-                char str = message[6];
-                int index = str - '0';
-                send_client.inGame = index;
-                for (int i = 0; i < MAX_PLAYERPLOBBY; ++i) {
-                    if (list_lobby[index].players[i].id < 0) {
-                        list_lobby[index].players[i].id = send_client.id;
-                        strcpy(output, "JOINED LOBBY ");
-                        output[13] = '0' + index;
-                        output[14] = '\n';
-                        send(send_client.socket, output, strlen(output), 0);
-                        strcpy(output, send_client.name.c_str());
-                        strcat(output, " JOINED THE LOBBY.\n");
-                        if (list_lobby[send_client.inGame].players[player2].id != -1)
-                            send(client_array[list_lobby[send_client.inGame].players[player2].id].socket,
-                                 output, strlen(output), 0);
-                        list_lobby[send_client.inGame].stage1 = 1;
-                        return 1;
-                    }
-                }
-                strcpy(output, "LOBBY ");
-                output[6] = '0' + index;
-                strcat(output, " IS FULL\n");
-                send(send_client.socket, output, strlen(output), 0);
-                return 1;
-            }
+        else if (action_input == "ATTACK") {
+            attacking_action = true;
+            player_turn = false;
         }
-        //LEAVE
-        case 8: {
-            if (send_client.inGame >= 0) {
-                strcat(output, send_client.name.c_str());
-                strcat(output, " LEFT THE LOBBY.\n");
-                send(client_array[list_lobby[send_client.inGame].players[player2].id].socket,
-                     output, strlen(output), 0);
-
-                strcpy(output, "LOBBY LEFT.\n");
-                send(send_client.socket, output, strlen(output), 0);
-                send_client.inGame = -1;
-                list_lobby[send_client.inGame].players[player].id = -1;
-                list_lobby[send_client.inGame].started[player] = 0;
-                return 1;
-            }
+        else if (action_input == "SCAN") {
+            scan_action = true;
+            player_turn = false;
         }
-        //START
-        case 9: {
-            if (send_client.inGame >= 0) {
-                if (list_lobby[send_client.inGame].started[0] < 1 || list_lobby[send_client.inGame].started[1] < 1)
-                    list_lobby[send_client.inGame].started[player]++;
-
-                if (list_lobby[send_client.inGame].started[0] > 0 && list_lobby[send_client.inGame].started[1] > 0) {
-                    strcpy(output, "GAME HAS STARTED!\n");
-                    send(send_client.socket, output, strlen(output), 0);
-                    send(client_array[list_lobby[send_client.inGame].players[player2].id].socket,
-                         output, strlen(output), 0);
-                    list_lobby[send_client.inGame].started[0] = 1;
-                    list_lobby[send_client.inGame].started[1] = 1;
-                    return 1;
-                } else if (list_lobby[send_client.inGame].started[player] < 2) {
-                    strcpy(output, "VOTED TO START, WAITING ON OTHER PLAYER\n");
-                    send(send_client.socket, output, strlen(output), 0);
-                    strcpy(output, "OTHER PLAYER IS WAITING FOR YOU.\n");
-                    send(client_array[list_lobby[send_client.inGame].players[player2].id].socket,
-                         output, strlen(output), 0);
-                    return 1;
-                }
-            }
+        else if (action_input == "MOVE") {
+            move_action = true;
+            player_turn = false;
         }
-        //DELIVERY
-        case 10: {
-
+        else if (action_input == "PLACE") {
+            place_action = true;
+            player_turn = false;
         }
-    }
-}
-
-int command_ingame(string message, client_type &send_client, vector<client_type> &client_array) {
-    char output[DEFAULT_BUFLEN];
-    memset(output, 0, DEFAULT_BUFLEN);
-    cout << "USER-INGAME: " << message;
-    std::this_thread::sleep_for(std::chrono::milliseconds(100));
-    int player2 = list_lobby[send_client.inGame].players[0].id == send_client.id;
-    int player = (player2 + 1) % 2;
-
-    int user_command = check_user_command(message);
-
-    if (list_lobby[send_client.inGame].players[player].turn > 0) {
-        switch (user_command) {
-            case 0: {
-                strcpy(output, "BAD-RQST\n");
-                if (send(send_client.socket, output, strlen(output), 0) > 0)
-                    return 1;
-                else
-                    return 0;
-            }
-            //ATTACK
-            case 4: {
-                if (list_lobby[send_client.inGame].stage1) {
-                    int x = (int) message[7] - '0';
-                    int y = (int) message[9] - '0';
-                    int hit = 0;
-
-                    for (int i = 0; i < MAX_SHIPS; ++i) {
-                        if (list_lobby[send_client.inGame].players[player2].ships[i].x == x &&
-                            list_lobby[send_client.inGame].players[player2].ships[i].y == y)
-                            hit = 1;
-                    }
-
-                    int countDestroyed = 0;
-                    for (int j = 0; j < MAX_SHIPS; ++j) {
-                        if (list_lobby[send_client.inGame].players[player2].ships[j].a < 1)
-                            countDestroyed++;
-                    }
-
-                    if (countDestroyed >= 3) {
-                        strcpy(output, "YOU WIN!\n");
-                        send(send_client.socket, output, strlen(output), 0);
-                        strcpy(output, "YOU LOST\n");
-                        send(client_array[list_lobby[send_client.inGame].players[player2].id].socket,
-                             output, strlen(output), 0);
-                    }
-
-                    if (hit) {
-                        strcpy(output, "PLAYER ");
-                        strcat(output, client_array[list_lobby[send_client.inGame].players[player2].id].name.c_str());
-                        strcat(output, " HIT\n");
-                        cout << output;
-                    } else {
-                        strcpy(output, "PLAYER ");
-                        strcat(output, client_array[list_lobby[send_client.inGame].players[player2].id].name.c_str());
-                        strcat(output, " MISSED\n");
-                    }
-                    send(send_client.socket, output, strlen(output), 0);
-                    send(client_array[list_lobby[send_client.inGame].players[player2].id].socket,
-                         output, strlen(output), 0);
-                    return 1;
-                }
-            }
-            //SCAN
-            case 5: {
-                if (list_lobby[send_client.inGame].stage1) {
-                    if (list_lobby[send_client.inGame].started[player] < 2) {
-                        strcpy(output, "GAME NOT YET STARTED\n");
-                        send(send_client.socket, output, strlen(output), 0);
-                        return 1;
-                    }
-
-                    int ship;
-
-                    while (true) {
-                        ship = rand() % 3 + 1;
-                        if (list_lobby[send_client.inGame].players[player2].ships[ship].a > 0)
-                            break;
-                    }
-
-                    int x = list_lobby[send_client.inGame].players[player2].ships[ship].x;
-                    int y = list_lobby[send_client.inGame].players[player2].ships[ship].y;
-
-                    x += rand() % 4 + (-2);
-                    y += rand() % 4 + (-2);
-
-                    strcpy(output, "SCAN ");
-                    strcat(output, (char*) x);
-                    strcat(output, " ");
-                    strcat(output, (char*) y);
-                    strcat(output, (char*) '\n');
-                    send(send_client.socket, output, strlen(output), 0);
-                }
-            }
-            //MOVE
-            case 6: {
-                if (!list_lobby[send_client.inGame].stage1) {
-                    if (list_lobby[send_client.inGame].started[player] < 2) {
-                        strcpy(output, "GAME NOT YET STARTED\n");
-                        send(send_client.socket, output, strlen(output), 0);
-                        return 1;
-                    }
-                    int ship = message[5] - '0';
-                    char action = message[7] - '0';
-
-                    if (action == 'r') {
-                        list_lobby[send_client.inGame].players[player].ships[ship].r =
-                                list_lobby[send_client.inGame].players[player].ships[ship].r + 1 % 2;
-                    } else if (action == 'm') {
-                        int direction = message[9] - '0';
-                        if (direction == 0)
-                            list_lobby[send_client.inGame].players[player].ships[ship].x--;
-                        if (direction == 1)
-                            list_lobby[send_client.inGame].players[player].ships[ship].x++;
-                        if (direction == 2)
-                            list_lobby[send_client.inGame].players[player].ships[ship].y--;
-                        if (direction == 3)
-                            list_lobby[send_client.inGame].players[player].ships[ship].y++;
-
-                        strcpy(output, "MOVED SHIP ");
-                        strcat(output, (char*) ship);
-                        strcat(output, (char*) '\n');
-                        send(send_client.socket, output, strlen(output), 0);
-                        return 1;
-                    } else {
-                        strcpy(output, "BAD FORMAT, TRY AGAIN. MOVE <ship id> <r/m> <1:4>\n");
-                        send(send_client.socket, output, strlen(output), 0);
-                        return 1;
-                    }
-                }
-                return 1;
-            }
-            //PLACE
-            case 7: {
-                if (list_lobby[send_client.inGame].stage1) {
-                    int ship = message[6] - '0';
-                    int x = message[8] - '0';
-                    int y = message[10] - '0';
-
-                    cout << "PLACE " << ship << " " << x << " " << y;
-
-                    list_lobby[send_client.inGame].players[player].ships[ship].x = x;
-                    list_lobby[send_client.inGame].players[player].ships[ship].y = y;
-
-                    strcpy(output, "PLACED SHIP\n");
-                    send(send_client.socket, output, strlen(output), 0);
-                }
-                return 1;
-            }
-            //LEAVE
-            case 8: {
-                strcpy(output, "GAME ENDED: PLAYER ");
-                strcat(output, send_client.name.c_str());
-                strcat(output, " LEFT THE GAME\n");
-                send(client_array[list_lobby[send_client.inGame].players[player2].id].socket,
-                     output, strlen(output), 0);
-
-                strcpy(output, "GAME ENDED");
-                send(send_client.socket, output, strlen(output), 0);
-                list_lobby[send_client.inGame].players[player].id = -1;
-                list_lobby[send_client.inGame].started[player] = 0;
-                list_lobby[send_client.inGame].stage1 = 0;
-                return 1;
-            }
-            //START
-            case 9: {
-                if (list_lobby[send_client.inGame].stage1 > 0) {
-                    for (int i = 0; i < MAX_SHIPS; ++i) {
-                        if (list_lobby[send_client.inGame].players[player].ships[i].x < 0) {
-                            strcpy(output, "PLACE SHIP ");
-                            output[5] = '0' + i;
-                            output[6] = '\n';
-                            send(send_client.socket, output, strlen(output), 0);
-                            return 1;
-                        }
-                    }
-                    list_lobby[send_client.inGame].started[player] = 1;
-                    strcpy(output, "VOTED TO START, WAITING ON OTHER PLAYER\n");
-                    send(send_client.socket, output, strlen(output), 0);
-                    strcpy(output, "OTHER PLAYER IS WAITING FOR YOU.\n");
-                    send(client_array[list_lobby[send_client.inGame].players[player2].id].socket,
-                         output, strlen(output), 0);
-                    return 1;
-                }
-            }
-            //DELIVERY
-            case 10: {
-
-            }
+        else if (action_input == "LEAVE") {
+            leave_action = true;
+            player_turn = false;
+        }
+        else {
+            cout << "You have entered an invalid action, please try again." << endl;
         }
     }
 
-    return 1;
-}
 
-int process_client(client_type &new_client, vector<client_type> &client_array, thread &thread)
-{
-    string msg = "";
-    char tempmsg[DEFAULT_BUFLEN] = "";
+    //LIST
+    while(list_action == true) {
+        cout << "Retrieving the list of players in the current session..." << endl;
+        //FIX ME    Wait a short while, retrieve a message back with the user list, copy it to a string and print it to the client
 
-    //Handshake
-    while (1)
-    {
-        memset(tempmsg, 0, DEFAULT_BUFLEN);
+        list_action = false;
+    }
 
-        if (new_client.socket != 0)
-        {
-            int iResult = recv(new_client.socket, tempmsg, DEFAULT_BUFLEN, 0);
-            cout << "Handshake: " << tempmsg;
-            if (iResult != SOCKET_ERROR)
-            {
-                string part;
-                part = string(&tempmsg[DEFAULT_LEN_HELLO], &tempmsg[strlen(tempmsg)]);
 
-                bool unique_name;
-                for (int i = 0; i < client_array.size(); ++i) {
-                    if (new_client.id != i) {
-                        unique_name = client_array[i].name.compare(string(&part.c_str()[0],
-                                                                          &part.c_str()[strlen(part.c_str()) - 1])) ? 1: 0;
-                        break;
-                    }
-                }
+    //LOBBY
+    while(lobby_action == true) {
+        //...
+    }
 
-                if (unique_name) {
-                    msg = "HELLO ";
-                    msg += part;
-                    cout << "Handshake: " << msg;
-                    send(new_client.socket, msg.c_str(), strlen(msg.c_str()), 0);
 
-                    client_array[new_client.id].name = string(&part.c_str()[0],
-                                                              &part.c_str()[strlen(part.c_str()) - 1]);
-                    new_client.inGame = -1;
-                    break;
-                } else {
-                    cout << send(new_client.socket, "IN-USE\n", 8, 0);
-                }
+    //ATTACK
+    while (attacking_action == 1) {
+        cout << "What coordinates would you like to target?" << endl;
+        cin >> x >> y;      //FIX ME    possibly add in a try-catch block, inputting e.g. letters will cause the program to get stuck in an infinite loop
 
-            }
-            else
-            {
-                msg = "Client #" + std::to_string(new_client.id) + " Disconnected";
-
-                std::cout << msg << std::endl;
-
-                closesocket(new_client.socket);
-                closesocket(client_array[new_client.id].socket);
-                client_array[new_client.id].socket = INVALID_SOCKET;
-
-                break;
-            }
+        if ((x >= 0) && (x < 12) && (y >= 0) && (y <= 12)) {
+            cout << "These are correct coordinates!" << endl;
+            cout << "You chose to attack <" << x << ", " << y << ">" << endl;
+            //FIX ME    Send_message "ATTACK x y" to server, server will pick [6] in the string as x, and [8] as y
+            //FIX ME    Wait a short while, receive message back stating whether it was a success, copy the message to a string and print it to the client
+            attacking_action = false;
         }
-    } //end while
+        else if ((x < 0) || (x > 12)) {
+            cout << "You have given an incorrect X coordinate, try again. (Use the format \"x y\")" << endl;
 
-    //Session
-    while (1)
-    {
-        memset(tempmsg, 0, DEFAULT_BUFLEN);
-
-        int player = list_lobby[new_client.inGame].players[0].id != new_client.id;
-
-        if (new_client.socket != 0)
-        {
-            int iResult = recv(new_client.socket, tempmsg, DEFAULT_BUFLEN, 0);
-
-            if (iResult != SOCKET_ERROR)
-            {
-
-                if (list_lobby[new_client.inGame].started[0] < 1 || list_lobby[new_client.inGame].started[1] < 1)
-                    command_lobby(tempmsg, new_client, client_array);
-                else
-                    command_ingame(tempmsg, new_client, client_array);
-            }
-            else
-            {
-                msg = "Client #" + std::to_string(new_client.id) + " Disconnected";
-
-                if (new_client.inGame >= 0) {
-                    list_lobby[new_client.inGame].players[player].id = -1;
-                    list_lobby[new_client.inGame].players[player].turn = 1;
-                    for (int i = 0; i < MAX_SHIPS; ++i) {
-                        list_lobby[new_client.inGame].players[player].ships[i].x = -1;
-                        list_lobby[new_client.inGame].players[player].ships[i].y = -1;
-                        list_lobby[new_client.inGame].players[player].ships[i].r = 0;
-                        list_lobby[new_client.inGame].players[player].ships[i].a = 1;
-                    }
-                    list_lobby[new_client.inGame].stage1 = 0;
-                    list_lobby[new_client.inGame].started[player] = 0;
-                }
-
-
-                //list_lobby
-
-                std::cout << msg << std::endl;
-
-                closesocket(new_client.socket);
-                closesocket(client_array[new_client.id].socket);
-                client_array[new_client.id].socket = INVALID_SOCKET;
-
-                break;
-            }
         }
-    } //end while
+        else if ((y < 0) || (y > 12)) {
+            cout << "You have given an incorrect Y coordinate, try again. (Use the format \"x y\")" << endl;
+        }
 
-    thread.detach();
+    }
+
+
+    //SCAN
+    while(scan_action == true) {
+        cout << "Scanning the board for hostile ships..." << endl;
+        //FIX ME    Send_message "SCAN" instructing the server to scan the board
+        //FIX ME    receive a message with coordinates of a ship, copy it to a string and print it to the client
+        scan_action = false;
+    }
+
+
+    //MOVE
+    while(move_action == true) {
+        //...
+        move_action = false;
+    }
+
+
+    //PLACE
+    while(place_action == true) {
+        //...
+        place_action = false;
+    }
+
+
+    //LEAVE
+    while(leave_action == true) {
+        //Disconnect from the socket
+        cout << "You have successfully disconnected from the server." << endl;
+        leave_action = false;
+    }
+
+
+    if (player_turn == false) {
+        //FIX ME    wait and receive a message every little while until a message is received stating that it is your turn
+        //FIX ME    once that specific message is received, set player_turn back to true to get into the loops again for an action
+    }
+
+
+
 
     return 0;
 }
 
-int main()
-{
-    WSADATA wsaData;
-    struct addrinfo hints;
-    struct addrinfo *server = NULL;
-    SOCKET server_socket = INVALID_SOCKET;
-    std::string msg = "";
-    int num_clients = 0;
-    int temp_id = -1;
-    std::thread my_thread[MAX_CLIENTS];
 
-    //Initialize Winsock
-    std::cout << "Intializing Winsock..." << std::endl;
-    WSAStartup(MAKEWORD(2, 2), &wsaData);
-
-    //Setup hints
-    ZeroMemory(&hints, sizeof(hints));
-    hints.ai_family = AF_INET;
-    hints.ai_socktype = SOCK_STREAM;
-    hints.ai_protocol = IPPROTO_TCP;
-    hints.ai_flags = AI_PASSIVE;
-
-    //Setup Server
-    std::cout << "Setting up server..." << std::endl;
-    getaddrinfo(static_cast<LPCTSTR>(IP_ADDRESS), DEFAULT_PORT, &hints, &server);
-
-    //Create a listening socket for connecting to server
-    std::cout << "Creating server socket..." << std::endl;
-    server_socket = socket(server->ai_family, server->ai_socktype, server->ai_protocol);
-
-    //Setup socket options
-    setsockopt(server_socket, SOL_SOCKET, SO_REUSEADDR, &OPTION_VALUE, sizeof(int)); //Make it possible to re-bind to a port that was used within the last 2 minutes
-    setsockopt(server_socket, IPPROTO_TCP, TCP_NODELAY, &OPTION_VALUE, sizeof(int)); //Used for interactive programs
-
-    //Assign an address to the server socket.
-    std::cout << "Binding socket..." << std::endl;
-    bind(server_socket, server->ai_addr, (int)server->ai_addrlen);
-
-    //Listen for incoming connections.
-    std::cout << "Listening..." << std::endl;
-    listen(server_socket, SOMAXCONN);
-
-    //Initialize the client list
-    for (int i = 0; i < MAX_CLIENTS; i++)
-    {
-        client[i] = { -1, "", INVALID_SOCKET };
-    }
-
-    while (1)
-    {
-        SOCKET incoming = INVALID_SOCKET;
-        incoming = accept(server_socket, NULL, NULL);
-
-        if (incoming == INVALID_SOCKET) continue;
-
-        //Reset the number of clients
-        num_clients = -1;
-
-        //Create a temporary id for the next client
-        temp_id = -1;
-        for (int i = 0; i < MAX_CLIENTS; i++)
-        {
-
-            if (client[i].socket == INVALID_SOCKET && temp_id == -1)
-            {
-                client[i].socket = incoming;
-                client[i].id = i;
-                temp_id = i;
-            }
-
-            if (client[i].socket != INVALID_SOCKET)
-                num_clients++;
-        }
-
-        if (temp_id != -1)
-        {
-            //Create a thread process for that client
-            my_thread[temp_id] = std::thread(process_client, std::ref(client[temp_id]), std::ref(client), std::ref(my_thread[temp_id]));
-        }
-        else
-        {
-            msg = "BUSY\n";
-            send(incoming, msg.c_str(), strlen(msg.c_str()), 0);
-            std::cout << msg << std::endl;
-        }
-    } //end while
-
-
-    //Close listening socket
-    closesocket(server_socket);
-
-    //Close client socket
-    for (int i = 0; i < MAX_CLIENTS; i++)
-    {
-        my_thread[i].detach();
-        closesocket(client[i].socket);
-    }
-
-    //Clean up Winsock
-    WSACleanup();
-    std::cout << "Program has ended successfully" << std::endl;
-
-    system("pause");
-    return 0;
-}
+//
