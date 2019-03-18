@@ -18,12 +18,19 @@
 #include "CircularLineBuffer.h"
 
 #define BUFFER_LENGTH 400
+#define MAX_x 12
+#define MAX_y 12
 
 using namespace std;
 
 struct Message {
     char in[BUFFER_LENGTH];
     char out[BUFFER_LENGTH];
+};
+
+struct ship {
+    int x;
+    int y;
 };
 
 enum class ConnStatus {
@@ -42,11 +49,20 @@ private:
 
     int command_lobby(string message);
     int command_ingame(string message);
-    int check_command(string message);
+    int check_user_command(string message);
+    int check_server_command(string message);
     bool quit(char msg[]);
     void command(char msg[]);
-    bool sendUserName();
-    ConnStatus receiveResponseFromServer();
+    bool send_username();
+    ConnStatus receive_response_from_server();
+    void set_field();
+    void update_field(int x, int y, char action, int id_s = -1);
+
+    ship ships[3];
+
+    char enemyField[MAX_x + 1][MAX_y + 1];
+    char scanField[MAX_x + 1][MAX_y + 1];
+    char ownField[MAX_x + 1][MAX_y + 1];
 
     int ingame = 0;
 

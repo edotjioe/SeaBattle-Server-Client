@@ -47,13 +47,13 @@ void Client::createSocketAndLogIn() {
     }
 
     while (loginStatus == ConnStatus::IN_PROGRESS) {
-        if (sendUserName()) {
-            loginStatus = receiveResponseFromServer();
+        if (send_username()) {
+            loginStatus = receive_response_from_server();
         }
     }
 }
 
-int Client::check_command(string message) {
+int Client::check_user_command(string message) {
     char buffer[BUFFER_LENGTH];
     strcpy(buffer, message.c_str());
 
@@ -82,13 +82,50 @@ int Client::check_command(string message) {
         return 10;
     else if (!strncmp(buffer, "NEXT-TURN", 9))
         return 11;
+    else if (!strncmp(buffer, "NEXT-TURN", 9))
+        return 11;
+    else
+        return -1;
+}
+
+int Client::check_server_command(string message){
+    char buffer[BUFFER_LENGTH];
+    strcpy(buffer, message.c_str());
+
+    if (message[strlen(buffer) - 1] != '\n')
+        return 0;
+
+    if (!strncmp(buffer, "HELLO", 10))
+        return 1;
+    else if (!strncmp(buffer, "LIST", 4))
+        return 2;
+    else if (!strncmp(buffer, "JOINED LOBBY", 5))
+        return 3;
+    else if (!strncmp(buffer, "ATTACK", 6))
+        return 4;
+    else if (!strncmp(buffer, "SCAN", 4))
+        return 5;
+    else if (!strncmp(buffer, "MOVE", 4))
+        return 6;
+    else if (!strncmp(buffer, "PLACE", 5))
+        return 7;
+    else if (!strncmp(buffer, "LEAVE", 5))
+        return 8;
+    else if (!strncmp(buffer, "START", 5))
+        return 9;
+    else if (!strncmp(buffer, "DELIVERY", 8))
+        return 10;
+    else if (!strncmp(buffer, "NEXT-TURN", 9))
+        return 11;
+    else if (!strncmp(buffer, "NEXT-TURN", 9))
+        return 11;
     else
         return -1;
 }
 
 //TODO Move the actions in main to here
 int Client::command_lobby(string message) {
-    int action = check_command(message);
+    int action = check_user_command(message);
 
     switch (action) {
         case 1: {
@@ -96,18 +133,44 @@ int Client::command_lobby(string message) {
         }
         case 2: {
             break;
+        }
+        case 5: {
+
+        }
+        case 9: {
+            ingame = 1;
         }
     }
 }
 
 int Client::command_ingame(string message) {
-    int action = check_command(message);
+    int action = check_server_command(message);
 
     switch (action) {
-        case 1: {
+        case 0: {
             break;
         }
-        case 2: {
+        case 4: {
+            int x = message[5] + '0';
+            int y = message[7] + '0';
+            update_field(x, y, 's');
+            break;
+        }
+        case 5: {
+            int x = message[5] + '0';
+            int y = message[7] + '0';
+            update_field(x, y, 's');
+            break;
+        }
+        case 7: {
+            int id = message[5] + '0';
+            int x = message[7] + '0';
+            int y = message[9] + '0';
+            update_field(x, y, 'p', id);
+            break;
+        }
+        case 9: {
+            set_field();
             break;
         }
     }
@@ -119,17 +182,17 @@ int Client::tick() {
             std::string to_server;
             to_server = stdinBuffer.readLine();
 
-            char msg[to_server.size()];
-            strcpy(msg, to_server.c_str());
+            int user_command = check_user_command(to_server);
 
-            send(sock, msg, strlen(msg), 0);
+            if (user_command > 0)
+                send(sock, to_server.c_str(), strlen(to_server.c_str()), 0);
         }
 
         if(socketBuffer.hasLine()){
             string from_server;
             from_server = socketBuffer.readLine();
 
-            if (!ingame) {
+            if (ingame < 1) {
                 command_lobby(from_server);
             } else {
                 command_ingame(from_server);
@@ -185,7 +248,7 @@ int Client::readFromStdin() {
 }
 
 // Send username to server
-bool Client::sendUserName() {
+bool Client::send_username() {
     memset(&message.out, 0x00, sizeof(message.out));
 
     char username[] = "", send_message[] = "HELLO-FROM ";
@@ -215,7 +278,7 @@ bool Client::sendUserName() {
 }
 
 // Receive response of server
-ConnStatus Client::receiveResponseFromServer() {
+ConnStatus Client::receive_response_from_server() {
     memset(&message.in, 0x00, sizeof(message.in));
 
     int recv_length = recv(sock, message.in, 1024, 0);
@@ -247,5 +310,94 @@ void Client::closeSocket() {
     sock_close(sock);
     sock_quit();
     std::cout << "Closing socket" << std::endl;
+}
+
+void Client::set_field() {
+    for (int i = 1; i < MAX_x + 1; ++i) {
+        enemyField[i][0] = (char) i;
+    }
+    for (int j = 1; j < MAX_y + 1; ++j) {
+        enemyField[0][j] = (char) j;
+    }
+
+    for (int k = 1; k < MAX_x; ++k) {
+        for (int i = 1; i < MAX_y; ++i) {
+            enemyField[k][i] = '.';
+        }
+    }
+
+    for (int i = 1; i < MAX_x + 1; ++i) {
+        ownField[i][0] = (char) i;
+    }
+    for (int j = 1; j < MAX_y + 1; ++j) {
+        ownField[0][j] = (char) j;
+    }
+
+    for (int k = 1; k < MAX_x; ++k) {
+        for (int i = 1; i < MAX_y; ++i) {
+            ownField[k][i] = '.';
+        }
+    }
+
+    for (int k = 0; k < MAX_x + 1; ++k) {
+        for (int i = 0; i < MAX_y + 1; ++i) {
+            cout << enemyField[k][i];
+        }
+        cout << endl;
+    }
+
+    for (int k = 0; k < MAX_x + 1; ++k) {
+        for (int i = 0; i < MAX_y + 1; ++i) {
+            cout << ownField[k][i];
+        }
+        cout << endl;
+    }
+}
+
+void Client::update_field(int x, int y, char action, int id_s) {
+    if (action == 'h') {
+        enemyField[x][y] = 'X';
+
+        for (int k = 0; k < MAX_x + 1; ++k) {
+            for (int i = 0; i < MAX_y + 1; ++i) {
+                cout << enemyField[k][i];
+            }
+            cout << endl;
+        }
+    } else if (action == 's') {
+        copy(enemyField[0], enemyField[MAX_x + 1], scanField[0]);
+        for (int i = -2; i < 3; ++i) {
+            for (int j = -2; j < 3; ++j) {
+                scanField[i + x][j + y] = '?';
+            }
+        }
+
+        for (int k = 0; k < MAX_x + 1; ++k) {
+            for (int i = 0; i < MAX_y + 1; ++i) {
+                cout << scanField[k][i];
+            }
+            cout << endl;
+        }
+    } else if (action == 'm') {
+        
+    } else if (action == 'p') {
+        ships[id_s].x = x;
+        ships[id_s].y = y;
+        ownField[x][y] = 'H';
+        for (int k = 0; k < MAX_x + 1; ++k) {
+            for (int i = 0; i < MAX_y + 1; ++i) {
+                cout << enemyField[k][i];
+            }
+            cout << endl;
+        }
+
+    }
+
+    for (int k = 0; k < MAX_x + 1; ++k) {
+        for (int i = 0; i < MAX_y + 1; ++i) {
+            cout << ownField[k][i];
+        }
+        cout << endl;
+    }
 }
 
