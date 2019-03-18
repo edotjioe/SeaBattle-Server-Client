@@ -19,7 +19,7 @@
 
 #define BUFFER_LENGTH 400
 
-using namespace std:
+using namespace std;
 
 struct Message {
     char in[BUFFER_LENGTH];

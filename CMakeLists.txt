@@ -2,6 +2,12 @@ cmake_minimum_required(VERSION 3.12)
 project(SeaBattle_Client)
 
 set(CMAKE_CXX_STANDARD 14)
-
-add_executable(SeaBattle_Client
-        main.cpp Client.cpp Client.h)
+set(TARGET_NAME seabattle-client)
+add_executable(${TARGET_NAME} main.cpp vusocket.h Client.cpp Client.h vusocket.cpp CircularLineBuffer.cpp CircularLineBuffer.h)
+if(WIN32)
+    target_link_libraries(${TARGET_NAME} Ws2_32)
+else()
+    set(THREADS_PREFER_PTHREAD_FLAG ON)
+    find_package(Threads REQUIRED)
+    target_link_libraries(${TARGET_NAME} Threads::Threads)
+endif()
