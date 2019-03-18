@@ -8,7 +8,7 @@ using namespace std;
 
 int main() {
     bool list_action = false, lobby_action = false, attacking_action = false, scan_action = false, move_action = false,
-        place_action = false, leave_action = false, lobby_connection = false;
+            place_action = false, leave_action = false, lobby_connection = false;
     string action_input;
     int x, y, ship, direction, lobby_number;
     char move_type;
@@ -116,20 +116,20 @@ int main() {
     //MOVE
     while(move_action == true) {
         cout << "What ship would you like to move?" << endl;
-        while (cin) {
+        while (1) {
             cin >> ship;
             if ((ship >= 1 ) && (ship <= 5)) {
                 break;
             }
             else {
-                cout << "You have given an incorrect ship-number, please try again." << endl;
+                cout << "You have given an invalid ship-number, please try again." << endl;
+                cin.clear();
                 cin.ignore();
             }
         }
 
-        cout << "Do you want to rotate (r) or move your ship (m)?" << endl;
-
-        while (cin) {
+        while (1) {
+            cout << "Do you want to rotate (r) or move your ship (m)?" << endl;
             cin >> move_type;
             if ((move_type != 'r') && (move_type != 'm')) {
                 cout << "You have given an invalid move type, you can rotate (r) or move (m)." << endl;
@@ -142,11 +142,33 @@ int main() {
 
         if (move_type == 'm') {
             cout << "In what direction would you like to move your ship?" << endl;
-        }
-        else if (move_type == 'r') {
-            cout << "You used rotate." << endl;
+            while (1) {
+                cin >> direction;
+                if (cin.fail()) {
+                    cout << "You have given an invalid direction, please try again. \nThe options are: left '0', right '1', down '2' or up '3'." << endl;
+                    cin.clear();
+                    cin.ignore();
+                }
+                else if ((direction >= 0 ) && (direction <= 3)){
+                    break;
+                }
+                else {
+                    cout << "You have given an invalid direction, please try again. \nThe options are: left '0', right '1', down '2' or up '3'." << endl;
+                    cin.clear();
+                    cin.ignore();
+                }
+            }
         }
 
+        else if (move_type == 'r') {
+            cout << "You used rotate." << endl;
+            //FIX ME
+        }
+
+        //FIX ME    Send_message "MOVE 4 1" to server, server will pick [5] in the string as ship, and [7] as the move type (r or m), if m, then [9] is the direction
+        //FIX ME    This can be done by making a string consisting of "MOVE      " where [5] is changed according to ship integer,
+        //FIX ME    [7] to move_type, and possibly [9] to direction
+        //FIX ME    Wait a short while, receive message back stating whether it was a success, copy the message to a string and print it to the client
 
         move_action = false;
     }
@@ -172,7 +194,7 @@ int main() {
         //FIX ME    once a message is received, act accordingly, either setting the player_turn back to true, or stating that the game is over and player defeated
     }
 
-
+    cout << "Test here: " << direction;
     return 0;
 }
 
