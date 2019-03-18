@@ -70,11 +70,12 @@ int check_crd(string message);
 int check_crd(string message){
     int result;
     string buffer;
-    if (message[1] != ' ') {
+    if (message[1] == 0x20) {
         char str = message[0];
         result = (int) str - '0';
-        cout << "m" << str << " " << result;
+        cout << "m" << message[1] << " " << result;
     } else {
+        cout << "Double ";
         buffer = message[0];
         buffer += message[1];
         result = atoi(buffer.c_str());
@@ -414,7 +415,7 @@ int command_ingame(string message, client_type &send_client, vector<client_type>
             //TODO Make place accept numbers higher than 9
             case 7: {
                 if (list_lobby[send_client.inGame].stage1) {
-                    int ship = message[6];
+                    int ship = message[6] - '0';
                     int x = check_crd(message.substr(8, 9));
                     int y;
                     if (x > 9)
@@ -422,14 +423,14 @@ int command_ingame(string message, client_type &send_client, vector<client_type>
                     else
                         y = check_crd(message.substr(10, 11));
 
-                    cout << "X: " << x << ", " << y << endl;
+                    cout << "X: " << x << ", " << y << ", ship " << ship << endl;
                     if (MAX_SHIPS < ship < 0) {
                         output_str ="INVALID SHIP\n";
                         send(send_client.socket, output_str.c_str(), strlen(output_str.c_str()), 0);
                         return 1;
                     }
 
-                    if (MAX_x > x && x > MIN_x)
+                    if (MAX_x >= x && x >= MIN_x)
                         list_lobby[send_client.inGame].players[player].ships[ship].x = x;
                     else {
                         output_str ="INVALID x\n";
@@ -462,6 +463,13 @@ int command_ingame(string message, client_type &send_client, vector<client_type>
                 list_lobby[send_client.inGame].players[player].id = -1;
                 list_lobby[send_client.inGame].started[player] = 0;
                 list_lobby[send_client.inGame].stage1 = 0;
+                list_lobby[send_client.inGame].players[player].turn = 1;
+                for (int i = 0; i < MAX_SHIPS; ++i) {
+                    list_lobby[send_client.inGame].players[player].ships[i].x = -1;
+                    list_lobby[send_client.inGame].players[player].ships[i].y = -1;
+                    list_lobby[send_client.inGame].players[player].ships[i].r = 0;
+                    list_lobby[send_client.inGame].players[player].ships[i].a = 1;
+                }
                 return 1;
             }
             //START
@@ -586,21 +594,11 @@ int process_client(client_type &new_client, vector<client_type> &client_array, t
             {
                 msg = "Client #" + std::to_string(new_client.id) + " Disconnected";
 
-                if (new_client.inGame >= 0) {
-                    list_lobby[new_client.inGame].players[player].id = -1;
-                    list_lobby[new_client.inGame].players[player].turn = 1;
-                    for (int i = 0; i < MAX_SHIPS; ++i) {
-                        list_lobby[new_client.inGame].players[player].ships[i].x = -1;
-                        list_lobby[new_client.inGame].players[player].ships[i].y = -1;
-                        list_lobby[new_client.inGame].players[player].ships[i].r = 0;
-                        list_lobby[new_client.inGame].players[player].ships[i].a = 1;
-                    }
-                    list_lobby[new_client.inGame].stage1 = 0;
-                    list_lobby[new_client.inGame].started[player] = 0;
-                }
-
-
-                //list_lobby
+                string leave_message = "LEAVE\n";
+                if (new_client.inGame >= 0)
+                    command_ingame(leave_message, new_client, client_array);
+                else
+                    command_lobby(leave_message, new_client, client_array);
 
                 std::cout << msg << std::endl;
 
