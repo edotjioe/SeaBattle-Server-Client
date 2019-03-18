@@ -4,4 +4,4 @@ project(SeaBattle_Client)
 set(CMAKE_CXX_STANDARD 14)
 
 add_executable(SeaBattle_Client
-        main.cpp)
+        main.cpp Client.cpp Client.h)
