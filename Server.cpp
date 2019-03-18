@@ -261,7 +261,7 @@ int Server::process_client(client_type &new_client, vector<client_type> &client_
             cout << "Session: " << tempmsg;
             if (iResult != SOCKET_ERROR)
             {
-                command(tempmsg, new_client);
+                command_ingame(tempmsg, new_client);
             }
             else
             {
