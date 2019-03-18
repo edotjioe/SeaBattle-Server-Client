@@ -176,7 +176,7 @@ int main() {
 
     //PLACE
     while(place_action == true) {
-        //...
+        //FIX ME
         place_action = false;
     }
 
