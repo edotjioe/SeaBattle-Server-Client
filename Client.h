@@ -19,6 +19,8 @@
 
 #define BUFFER_LENGTH 400
 
+using namespace std:
+
 struct Message {
     char in[BUFFER_LENGTH];
     char out[BUFFER_LENGTH];
@@ -38,8 +40,9 @@ private:
     struct Message message;
     ConnStatus loginStatus;
 
-    int command_lobby(char message[]);
-    int command_ingame(char message[]);
+    int command_lobby(string message);
+    int command_ingame(string message);
+    int check_command(string message);
     bool quit(char msg[]);
     void command(char msg[]);
     bool sendUserName();

@@ -53,58 +53,93 @@ void Client::createSocketAndLogIn() {
     }
 }
 
-int Client::command_lobby(char *message) {
+int Client::check_command(string message) {
+    char buffer[BUFFER_LENGTH];
+    strcpy(buffer, message.c_str());
 
+    if (message[strlen(buffer) - 1] != '\n')
+        return 0;
+
+    if (!strncmp(buffer, "HELLO-FROM", 10))
+        return 1;
+    else if (!strncmp(buffer, "LIST", 4))
+        return 2;
+    else if (!strncmp(buffer, "LOBBY", 5))
+        return 3;
+    else if (!strncmp(buffer, "ATTACK", 6))
+        return 4;
+    else if (!strncmp(buffer, "SCAN", 4))
+        return 5;
+    else if (!strncmp(buffer, "MOVE", 4))
+        return 6;
+    else if (!strncmp(buffer, "PLACE", 5))
+        return 7;
+    else if (!strncmp(buffer, "LEAVE", 5))
+        return 8;
+    else if (!strncmp(buffer, "START", 5))
+        return 9;
+    else if (!strncmp(buffer, "DELIVERY", 8))
+        return 10;
+    else if (!strncmp(buffer, "NEXT-TURN", 9))
+        return 11;
+    else
+        return -1;
 }
 
-int Client::command_ingame(char *message) {
+//TODO Move the actions in main to here
+int Client::command_lobby(string message) {
+    int action = check_command(message);
 
+    switch (action) {
+        case 1: {
+            break;
+        }
+        case 2: {
+            break;
+        }
+    }
+}
+
+int Client::command_ingame(string message) {
+    int action = check_command(message);
+
+    switch (action) {
+        case 1: {
+            break;
+        }
+        case 2: {
+            break;
+        }
+    }
 }
 
 int Client::tick() {
     if(loginStatus == ConnStatus::SUCCESS){
         if(stdinBuffer.hasLine()){
-            std::string output;
-            output = stdinBuffer.readLine();
+            std::string to_server;
+            to_server = stdinBuffer.readLine();
 
-            char msg[output.size()];
-            strcpy(msg, output.c_str());
-
-            if (!ingame) {
-                command_lobby(msg);
-            } else {
-                command_ingame(msg);
-            }
+            char msg[to_server.size()];
+            strcpy(msg, to_server.c_str());
 
             send(sock, msg, strlen(msg), 0);
-//            command(msg);
         }
 
         if(socketBuffer.hasLine()){
-            std::string input;
-            input = socketBuffer.readLine();
+            string from_server;
+            from_server = socketBuffer.readLine();
 
-            std::cout << "SERVER: " << input;
+            if (!ingame) {
+                command_lobby(from_server);
+            } else {
+                command_ingame(from_server);
+            }
+
+            std::cout << "SERVER: " << from_server;
         }
         return 0;
     }
     return -1;
-}
-
-void Client::command(char msg[]) {
-    if (msg[0] == '@') {
-        char newMsg[1024] = "";
-        std::copy(&msg[1], &msg[strlen(msg)], newMsg);
-        strcpy(msg, "SEND ");
-        strcat(msg, newMsg);
-    } else if (strcmp(msg, "!who\n") == 0) {
-        strcpy(msg, "WHO\n");
-    } else {
-        std::cout << "Client: Command not recognised" << std::endl;
-        return;
-    }
-
-    send(sock, msg, strlen(msg), 0);
 }
 
 bool Client::quit(char msg[]) {
