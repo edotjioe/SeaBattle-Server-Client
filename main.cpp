@@ -324,11 +324,11 @@ int command_ingame(string message, client_type &send_client, vector<client_type>
                         output_str += client_array[list_lobby[send_client.inGame].players[player2].id].name.c_str();
                         output_str += "\n";
                     } else {
-                        output_str = "PLAYER MISSED (";
+                        output_str = "PLAYER MISSED ";
                         output_str += to_string(x);
-                        output_str += ",";
+                        output_str += " ";
                         output_str += to_string(y);
-                        output_str += ") ";
+                        output_str += " ";
                         output_str += client_array[list_lobby[send_client.inGame].players[player2].id].name.c_str();
                         output_str += "\n";
                     }
