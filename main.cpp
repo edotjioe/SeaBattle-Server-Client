@@ -131,6 +131,8 @@ int check_user_command(string message) {
         return 9;
     else if (!strncmp(buffer, "DELIVERY", 8))
         return 10;
+    else if (!strncmp(buffer, "TIMEOUT", 7))
+        return 11;
     else
         return -1;
 }
@@ -240,6 +242,26 @@ int command_lobby(string message, client_type &send_client, vector<client_type> 
         case 10: {
 
         }
+        //TIMEOUT
+        case 11: {
+            if (send_client.inGame >= 0) {
+                if (list_lobby[send_client.inGame].players[player2].id >= 0) {
+                    output_str = send_client.name.c_str();
+                    output_str += " LEFT THE LOBBY. AFTER TIMEOUT\n";
+                    send(client_array[list_lobby[send_client.inGame].players[player2].id].socket,
+                         output_str.c_str(), strlen(output_str.c_str()), 0);
+                }
+                output_str = "LOBBY LEFT. TIMEOUT\n";
+                send(send_client.socket, output_str.c_str(), strlen(output_str.c_str()), 0);
+                list_lobby[send_client.inGame].players[player].id = -1;
+                list_lobby[send_client.inGame].voted[player] = 0;
+                send_client.inGame = -1;
+                return 1;
+            }
+            output_str = "GAME CLOSED. TIMEOUT\n";
+            send(send_client.socket, output_str.c_str(), strlen(output_str.c_str()), 0);
+            return 1;
+        }
     }
 }
 
@@ -282,7 +304,8 @@ int command_ingame(string message, client_type &send_client, vector<client_type>
                     int countDestroyed = 0;
                     for (int i = 0; i < MAX_SHIPS; ++i) {
                         if (list_lobby[send_client.inGame].players[player2].ships[i].x == x &&
-                            list_lobby[send_client.inGame].players[player2].ships[i].y == y) {
+                            list_lobby[send_client.inGame].players[player2].ships[i].y == y &&
+                            list_lobby[send_client.inGame].players[player2].ships[i].a > 0) {
                             list_lobby[send_client.inGame].players[player2].ships[i].a = 0;
                             hit = 1;
                         }
@@ -297,17 +320,17 @@ int command_ingame(string message, client_type &send_client, vector<client_type>
                         output_str = "PLAYER ";
                         output_str += client_array[list_lobby[send_client.inGame].players[player2].id].name.c_str();
                         output_str += " HIT (";
-                        output_str += x + '0';
+                        output_str += to_string(x);
                         output_str += ",";
-                        output_str += y + '0';
+                        output_str += to_string(y);
                         output_str += ")\n";
                     } else {
                         output_str = "PLAYER ";
                         output_str += client_array[list_lobby[send_client.inGame].players[player2].id].name.c_str();
                         output_str += " MISSED (";
-                        output_str += x + '0';
+                        output_str += to_string(x);
                         output_str += ",";
-                        output_str += y + '0';
+                        output_str += to_string(y);
                         output_str += ")\n";
                     }
                     send(send_client.socket, output_str.c_str(), strlen(output_str.c_str()), 0);
@@ -356,10 +379,12 @@ int command_ingame(string message, client_type &send_client, vector<client_type>
                     x = abs(x + (rand() % 5) - 2) % MAX_x;
                     y = abs(y + (rand() % 5) - 2) % MAX_y;
 
+                    cout << "x: " << x << ", y " << y << endl;
+
                     output_str = "SCAN ";
-                    output_str += '0' + x;
+                    output_str += to_string(x);
                     output_str += " ";
-                    output_str += '0' + y;
+                    output_str += to_string(y);
                     output_str += '\n';
                     send(send_client.socket, output_str.c_str(), strlen(output_str.c_str()), 0);
 
@@ -407,7 +432,7 @@ int command_ingame(string message, client_type &send_client, vector<client_type>
                     }
 
                     output_str = "MOVED SHIP ";
-                    output_str += '0' + ship;
+                    output_str += to_string(ship);
                     output_str += '\n';
                     send(send_client.socket, output_str.c_str(), strlen(output_str.c_str()), 0);
                 }
@@ -492,7 +517,7 @@ int command_ingame(string message, client_type &send_client, vector<client_type>
                     for (int i = 0; i < MAX_SHIPS; ++i) {
                         if (list_lobby[send_client.inGame].players[player].ships[i].x < 0) {
                             output_str = "PLACE SHIP ";
-                            output_str += '0' + i;
+                            output_str += to_string(i);
                             output_str += '\n';
                             send(send_client.socket, output_str.c_str(), strlen(output_str.c_str()), 0);
                             return 1;
@@ -521,6 +546,19 @@ int command_ingame(string message, client_type &send_client, vector<client_type>
             //DELIVERY
             case 10: {
 
+            }
+                //TIMEOUT
+            case 11: {
+                output_str = send_client.name.c_str();
+                output_str += " LEFT THE GAME. AFTER TIMEOUT\n";
+                send(client_array[list_lobby[send_client.inGame].players[player2].id].socket,
+                         output_str.c_str(), strlen(output_str.c_str()), 0);
+                output_str = "GAME LEFT. TIMEOUT\n";
+                send(send_client.socket, output_str.c_str(), strlen(output_str.c_str()), 0);
+                list_lobby[send_client.inGame].players[player].id = -1;
+                list_lobby[send_client.inGame].voted[player] = 0;
+                send_client.inGame = -1;
+                return 1;
             }
         }
     }
@@ -592,39 +630,67 @@ int process_client(client_type &new_client, vector<client_type> &client_array, t
     while (1)
     {
         memset(tempmsg, 0, DEFAULT_BUFLEN);
+        int result = -1, length = 0;
+        fd_set readset;
+        struct timeval stTimeOut;
+        stTimeOut.tv_sec = 60;
+        stTimeOut.tv_usec = 1;
 
-        int player = list_lobby[new_client.inGame].players[0].id != new_client.id;
+        FD_ZERO(&readset);
+        FD_SET(new_client.socket, &readset);
 
-        if (new_client.socket != 0)
-        {
-            
-            int iResult = recv(new_client.socket, tempmsg, DEFAULT_BUFLEN, 0);
+        result = select(new_client.socket + 1, &readset, NULL, NULL, &stTimeOut);
 
-            if (iResult != SOCKET_ERROR)
+        if (result != 0) {
+            int player = list_lobby[new_client.inGame].players[0].id != new_client.id;
+
+            if (new_client.socket != 0)
             {
-                if (new_client.inGame < 0 || list_lobby[new_client.inGame].stage < 1)
-                    command_lobby(tempmsg, new_client, client_array);
+
+                int iResult = recv(new_client.socket, tempmsg, DEFAULT_BUFLEN, 0);
+
+                if (iResult != SOCKET_ERROR)
+                {
+                    if (new_client.inGame < 0 || list_lobby[new_client.inGame].stage < 1)
+                        command_lobby(tempmsg, new_client, client_array);
+                    else
+                        command_ingame(tempmsg, new_client, client_array);
+                }
                 else
-                    command_ingame(tempmsg, new_client, client_array);
+                {
+                    msg = "Client #" + std::to_string(new_client.id) + " Disconnected";
+
+                    string leave_message = "LEAVE\n";
+                    if (new_client.inGame >= 0)
+                        command_ingame(leave_message, new_client, client_array);
+                    else
+                        command_lobby(leave_message, new_client, client_array);
+
+                    std::cout << msg << std::endl;
+
+                    closesocket(new_client.socket);
+                    closesocket(client_array[new_client.id].socket);
+                    client_array[new_client.id].socket = INVALID_SOCKET;
+
+                    break;
+                }
             }
+        } else if (result == 0) {
+            msg = "Client #" + std::to_string(new_client.id) + " Disconnected";
+
+            string leave_message = "TIMEOUT\n";
+            if (new_client.inGame >= 0)
+                command_ingame(leave_message, new_client, client_array);
             else
-            {
-                msg = "Client #" + std::to_string(new_client.id) + " Disconnected";
+                command_lobby(leave_message, new_client, client_array);
 
-                string leave_message = "LEAVE\n";
-                if (new_client.inGame >= 0)
-                    command_ingame(leave_message, new_client, client_array);
-                else
-                    command_lobby(leave_message, new_client, client_array);
+            std::cout << msg << std::endl;
 
-                std::cout << msg << std::endl;
+            closesocket(new_client.socket);
+            closesocket(client_array[new_client.id].socket);
+            client_array[new_client.id].socket = INVALID_SOCKET;
 
-                closesocket(new_client.socket);
-                closesocket(client_array[new_client.id].socket);
-                client_array[new_client.id].socket = INVALID_SOCKET;
-
-                break;
-            }
+            break;
         }
     } //end while
 
