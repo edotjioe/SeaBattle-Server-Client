@@ -15,6 +15,10 @@
 #define MAX_LOBBY 4
 #define MAX_SHIPS 3
 #define MAX_PLAYERPLOBBY 2
+#define MAX_x 12
+#define MIN_x 1
+#define MAX_y 12
+#define MIN_y 1
 
 using namespace std;
 
@@ -61,6 +65,22 @@ int main();
 int command_lobby(string message, client_type &send_client, vector<client_type> &client_array);
 int command_ingame(string message, client_type &send_client, vector<client_type> &client_array);
 int check_user_command(string message);
+int check_crd(string message);
+
+int check_crd(string message){
+    int result;
+    string buffer;
+    if (message[1] != ' ') {
+        char str = message[0];
+        result = (int) str - '0';
+        cout << "m" << str << " " << result;
+    } else {
+        buffer = message[0];
+        buffer += message[1];
+        result = atoi(buffer.c_str());
+    }
+    return result;
+}
 
 send_message construct_message(string message);
 
@@ -243,10 +263,11 @@ int command_ingame(string message, client_type &send_client, vector<client_type>
                     return 0;
             }
             //ATTACK
+            //TODO Make attack accept numbers higher than 9
             case 4: {
-                if (list_lobby[send_client.inGame].stage1) {
-                    int x = (int) message[7] - '0';
-                    int y = (int) message[9] - '0';
+                if (!list_lobby[send_client.inGame].stage1) {
+                    int x = message[7] - '0';
+                    int y = message[9] - '0';
                     int hit = 0;
 
                     for (int i = 0; i < MAX_SHIPS; ++i) {
@@ -272,24 +293,41 @@ int command_ingame(string message, client_type &send_client, vector<client_type>
                     if (hit) {
                         output_str = "PLAYER ";
                         output_str += client_array[list_lobby[send_client.inGame].players[player2].id].name.c_str();
-                        output_str += " HIT\n";
-                        cout << output_str;
+                        output_str += " HIT (";
+                        output_str += x;
+                        output_str += ",";
+                        output_str += y;
+                        output_str += ")\n";
                     } else {
                         output_str = "PLAYER ";
                         output_str += client_array[list_lobby[send_client.inGame].players[player2].id].name.c_str();
-                        output_str += " MISSED\n";
+                        output_str += " MISSED (";
+                        output_str += x;
+                        output_str += ",";
+                        output_str += y;
+                        output_str += ")\n";
                     }
                     send(send_client.socket, output_str.c_str(), strlen(output_str.c_str()), 0);
                     send(client_array[list_lobby[send_client.inGame].players[player2].id].socket,
                          output_str.c_str(), strlen(output_str.c_str()), 0);
+
+                    if (list_lobby[send_client.inGame].players[0].turn > 0 && list_lobby[send_client.inGame].players[1].turn > 0) {
+                        list_lobby[send_client.inGame].players[0].turn = 0;
+                        list_lobby[send_client.inGame].players[1].turn = 0;
+                        output_str = "NEXT-TURN\n";
+                        send(send_client.socket, output_str.c_str(), strlen(output_str.c_str()), 0);
+                        send(client_array[list_lobby[send_client.inGame].players[player2].id].socket,
+                             output_str.c_str(), strlen(output_str.c_str()), 0);
+                        return 1;
+                    }
                     return 1;
                 }
             }
             //SCAN
             case 5: {
-                if (list_lobby[send_client.inGame].stage1) {
+                if (!list_lobby[send_client.inGame].stage1) {
                     if (list_lobby[send_client.inGame].started[player] < 2) {
-                        output_str = "GAME NOT YET STARTED\n";
+                        output_str = "GAME NOT STARTED\n";
                         send(send_client.socket, output_str.c_str(), strlen(output_str.c_str()), 0);
                         return 1;
                     }
@@ -314,13 +352,24 @@ int command_ingame(string message, client_type &send_client, vector<client_type>
                     output_str += '0' + y;
                     output_str += '\n';
                     send(send_client.socket, output_str.c_str(), strlen(output_str.c_str()), 0);
+
+                    if (list_lobby[send_client.inGame].players[0].turn > 0 && list_lobby[send_client.inGame].players[1].turn > 0) {
+                        list_lobby[send_client.inGame].players[0].turn = 0;
+                        list_lobby[send_client.inGame].players[1].turn = 0;
+                        output_str = "NEXT-TURN\n";
+                        send(send_client.socket, output_str.c_str(), strlen(output_str.c_str()), 0);
+                        send(client_array[list_lobby[send_client.inGame].players[player2].id].socket,
+                             output_str.c_str(), strlen(output_str.c_str()), 0);
+                        return 1;
+                    }
                 }
             }
             //MOVE
+            //TODO Make move check if out of bounds
             case 6: {
                 if (!list_lobby[send_client.inGame].stage1) {
                     if (list_lobby[send_client.inGame].started[player] < 2) {
-                        output_str = "GAME NOT YET STARTED\n";
+                        output_str = "GAME NOT STARTED\n";
                         send(send_client.socket, output_str.c_str(), strlen(output_str.c_str()), 0);
                         return 1;
                     }
@@ -345,26 +394,57 @@ int command_ingame(string message, client_type &send_client, vector<client_type>
                         output_str += '0' + ship;
                         output_str += '\n';
                         send(send_client.socket, output_str.c_str(), strlen(output_str.c_str()), 0);
-                        return 1;
                     } else {
-                        output_str ="BAD FORMAT, TRY AGAIN. MOVE <ship id> <r/m> <1:4>\n";
+                        output_str ="INVALID\n";
                         send(send_client.socket, output_str.c_str(), strlen(output_str.c_str()), 0);
+                    }
+                    if (list_lobby[send_client.inGame].players[0].turn > 0 && list_lobby[send_client.inGame].players[1].turn > 0) {
+                        list_lobby[send_client.inGame].players[0].turn = 0;
+                        list_lobby[send_client.inGame].players[1].turn = 0;
+                        output_str = "NEXT-TURN\n";
+                        send(send_client.socket, output_str.c_str(), strlen(output_str.c_str()), 0);
+                        send(client_array[list_lobby[send_client.inGame].players[player2].id].socket,
+                             output_str.c_str(), strlen(output_str.c_str()), 0);
                         return 1;
                     }
                 }
                 return 1;
             }
             //PLACE
+            //TODO Make place accept numbers higher than 9
             case 7: {
                 if (list_lobby[send_client.inGame].stage1) {
-                    int ship = message[6] - '0';
-                    int x = message[8] - '0';
-                    int y = message[10] - '0';
+                    int ship = message[6];
+                    int x = check_crd(message.substr(8, 9));
+                    int y;
+                    if (x > 9)
+                        y = check_crd(message.substr(11, 12));
+                    else
+                        y = check_crd(message.substr(10, 11));
 
-                    list_lobby[send_client.inGame].players[player].ships[ship].x = x;
-                    list_lobby[send_client.inGame].players[player].ships[ship].y = y;
+                    cout << "X: " << x << ", " << y << endl;
+                    if (MAX_SHIPS < ship < 0) {
+                        output_str ="INVALID SHIP\n";
+                        send(send_client.socket, output_str.c_str(), strlen(output_str.c_str()), 0);
+                        return 1;
+                    }
 
-                    output_str ="PLACED SHIP\n";
+                    if (MAX_x > x && x > MIN_x)
+                        list_lobby[send_client.inGame].players[player].ships[ship].x = x;
+                    else {
+                        output_str ="INVALID x\n";
+                        send(send_client.socket, output_str.c_str(), strlen(output_str.c_str()), 0);
+                        return 1;
+                    }
+                    if (MAX_y >= y >= MIN_y)
+                        list_lobby[send_client.inGame].players[player].ships[ship].y = y;
+                    else {
+                        output_str ="INVALID y\n";
+                        send(send_client.socket, output_str.c_str(), strlen(output_str.c_str()), 0);
+                        return 1;
+                    }
+
+                    output_str ="VALID\n";
                     send(send_client.socket, output_str.c_str(), strlen(output_str.c_str()), 0);
                 }
                 return 1;
@@ -377,7 +457,7 @@ int command_ingame(string message, client_type &send_client, vector<client_type>
                 send(client_array[list_lobby[send_client.inGame].players[player2].id].socket,
                      output_str.c_str(), strlen(output_str.c_str()), 0);
 
-                output_str = "GAME ENDED";
+                output_str = "GAME ENDED\n";
                 send(send_client.socket, output_str.c_str(), strlen(output_str.c_str()), 0);
                 list_lobby[send_client.inGame].players[player].id = -1;
                 list_lobby[send_client.inGame].started[player] = 0;
@@ -386,7 +466,7 @@ int command_ingame(string message, client_type &send_client, vector<client_type>
             }
             //START
             case 9: {
-                if (list_lobby[send_client.inGame].stage1 > 0) {
+                if (list_lobby[send_client.inGame].stage1) {
                     for (int i = 0; i < MAX_SHIPS; ++i) {
                         if (list_lobby[send_client.inGame].players[player].ships[i].x < 0) {
                             output_str = "PLACE SHIP ";
@@ -396,13 +476,23 @@ int command_ingame(string message, client_type &send_client, vector<client_type>
                             return 1;
                         }
                     }
-                    list_lobby[send_client.inGame].started[player] = 1;
-                    output_str = "VOTED TO START, WAITING ON OTHER PLAYER\n";
-                    send(send_client.socket, output_str.c_str(), strlen(output_str.c_str()), 0);
-                    output_str = "OTHER PLAYER IS WAITING FOR YOU.\n";
-                    send(client_array[list_lobby[send_client.inGame].players[player2].id].socket,
-                         output_str.c_str(), strlen(output_str.c_str()), 0);
-                    return 1;
+                    if (list_lobby[send_client.inGame].started[0] > 0 && list_lobby[send_client.inGame].started[1] > 0) {
+                        output_str = "GAME STARTED\n";
+                        send(send_client.socket, output_str.c_str(), strlen(output_str.c_str()), 0);
+                        send(client_array[list_lobby[send_client.inGame].players[player2].id].socket,
+                             output_str.c_str(), strlen(output_str.c_str()), 0);
+                        list_lobby[send_client.inGame].players[0].turn = 0;
+                        list_lobby[send_client.inGame].players[1].turn = 0;
+                        return 1;
+                    } else {
+                        list_lobby[send_client.inGame].started[player] = 1;
+                        output_str = "VOTED TO START, WAITING FOR OTHER PLAYER\n";
+                        send(send_client.socket, output_str.c_str(), strlen(output_str.c_str()), 0);
+                        output_str = "OTHER PLAYER IS WAITING FOR YOU\n";
+                        send(client_array[list_lobby[send_client.inGame].players[player2].id].socket,
+                             output_str.c_str(), strlen(output_str.c_str()), 0);
+                        return 1;
+                    }
                 }
             }
             //DELIVERY
