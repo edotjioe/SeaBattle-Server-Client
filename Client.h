@@ -51,12 +51,15 @@ private:
     int command_ingame(string message);
     int check_user_command(string message);
     int check_server_command(string message);
+    int check_crd(string message);
     bool quit(char msg[]);
     void command(char msg[]);
     bool send_username();
     ConnStatus receive_response_from_server();
     void set_field();
     void update_field(int x, int y, char action, int id_s = -1);
+    void view_field();
+    void view_scan_field();
 
     ship ships[3];
 
@@ -65,6 +68,7 @@ private:
     char ownField[MAX_x + 1][MAX_y + 1];
 
     int ingame = 0;
+    int turn = 1;
 
     /**
      * You are free to add new member variables and methods here if needed.

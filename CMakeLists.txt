@@ -2,6 +2,7 @@ cmake_minimum_required(VERSION 3.12)
 project(SeaBattle_Client)
 
 set(CMAKE_CXX_STANDARD 14)
+set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -static -static-libstdc++ -static-libgcc -Bstatic --whole-file ")
 set(TARGET_NAME seabattle-client)
 add_executable(${TARGET_NAME} main.cpp vusocket.h Client.cpp Client.h vusocket.cpp CircularLineBuffer.cpp CircularLineBuffer.h)
 if(WIN32)
