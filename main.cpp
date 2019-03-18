@@ -316,11 +316,11 @@ int command_ingame(string message, client_type &send_client, vector<client_type>
                     }
 
                     if (hit) {
-                        output_str = "PLAYER HIT (";
+                        output_str = "PLAYER HIT ";
                         output_str += to_string(x);
-                        output_str += ",";
+                        output_str += " ";
                         output_str += to_string(y);
-                        output_str += ") ";
+                        output_str += " ";
                         output_str += client_array[list_lobby[send_client.inGame].players[player2].id].name.c_str();
                         output_str += "\n";
                     } else {
