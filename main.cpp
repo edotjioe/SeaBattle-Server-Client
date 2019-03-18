@@ -33,8 +33,8 @@ struct send_message
 };
 
 struct ship {
-    int x;
-    int y;
+    int x = -1;
+    int y = -1;
     int r = 0;
     int a = 1;
 };
@@ -396,7 +396,7 @@ int command_ingame(string message, client_type &send_client, vector<client_type>
                 if (list_lobby[send_client.inGame].stage1 > 0) {
                     for (int i = 0; i < MAX_SHIPS; ++i) {
                         if (list_lobby[send_client.inGame].players[player].ships[i].x < 0) {
-                            strcpy(output, "SHIP ");
+                            strcpy(output, "PLACE SHIP ");
                             output[5] = '0' + i;
                             output[6] = '\n';
                             send(send_client.socket, output, strlen(output), 0);
@@ -507,8 +507,8 @@ int process_client(client_type &new_client, vector<client_type> &client_array, t
                     list_lobby[new_client.inGame].players[player].id = -1;
                     list_lobby[new_client.inGame].players[player].turn = 1;
                     for (int i = 0; i < MAX_SHIPS; ++i) {
-                        list_lobby[new_client.inGame].players[player].ships[i].x = 0;
-                        list_lobby[new_client.inGame].players[player].ships[i].y = 0;
+                        list_lobby[new_client.inGame].players[player].ships[i].x = -1;
+                        list_lobby[new_client.inGame].players[player].ships[i].y = -1;
                         list_lobby[new_client.inGame].players[player].ships[i].r = 0;
                         list_lobby[new_client.inGame].players[player].ships[i].a = 1;
                     }
