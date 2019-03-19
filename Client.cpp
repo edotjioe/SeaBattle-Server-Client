@@ -316,7 +316,7 @@ int Client::command_ingame(string message) {
         }
         //INVALID
         case 20: {
-            cout << "Command format was wrong.\n";
+            cout << message;
             break;
         }
         case 21: {
