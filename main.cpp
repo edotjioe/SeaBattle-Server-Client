@@ -409,9 +409,9 @@ int command_ingame(string message, client_type &send_client, vector<client_type>
                         return 1;
                     }
 
-                    if (direction == 'd' && list_lobby[send_client.inGame].players[player].ships[ship].x > MIN_x)
+                    if (direction == 'u' && list_lobby[send_client.inGame].players[player].ships[ship].x > MIN_x)
                         list_lobby[send_client.inGame].players[player].ships[ship].x--;
-                    else if (direction == 'u' && list_lobby[send_client.inGame].players[player].ships[ship].x < MAX_x)
+                    else if (direction == 'd' && list_lobby[send_client.inGame].players[player].ships[ship].x < MAX_x)
                         list_lobby[send_client.inGame].players[player].ships[ship].x++;
                     else if (direction == 'l' && list_lobby[send_client.inGame].players[player].ships[ship].y > MIN_y)
                         list_lobby[send_client.inGame].players[player].ships[ship].y--;
@@ -478,6 +478,17 @@ int command_ingame(string message, client_type &send_client, vector<client_type>
                         output_str ="INVALID y\n";
                         send(send_client.socket, output_str.c_str(), strlen(output_str.c_str()), 0);
                         return 1;
+                    }
+
+                    for (int i = 0; i < MAX_SHIPS; ++i) {
+                        if (list_lobby[send_client.inGame].players[player].ships[i].x == x &&
+                                list_lobby[send_client.inGame].players[player].ships[i].y == y &&
+                                i != ship)
+                        {
+                            output_str ="INVALID, position already used.\n";
+                            send(send_client.socket, output_str.c_str(), strlen(output_str.c_str()), 0);
+                            return 1;
+                        }
                     }
 
                     output_str = "PLACED SHIP ";
