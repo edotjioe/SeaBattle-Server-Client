@@ -117,9 +117,9 @@ int Client::check_server_command(string message){
         return 10;
     else if (!strncmp(buffer, "LOBBY LEFT. TIMEOUT", 19))
         return 11;
-    else if (!strncmp(buffer, "PLAYER HIT", 10))
+    else if (!strncmp(buffer, "HIT", 3))
         return 12;
-    else if (!strncmp(buffer, "PLAYER MISSED", 13))
+    else if (!strncmp(buffer, "MISSED", 6))
         return 13;
     else if (!strncmp(buffer, "WIN", 3))
         return 14;
@@ -135,9 +135,9 @@ int Client::check_server_command(string message){
         return 19;
     else if(!strncmp(buffer, "INVALID", 4))
         return 20;
-    else if(!strncmp(buffer, "PLACE SHIP", 10))
-        return 21;
     else if(!strncmp(buffer, "GAME STARTED", 12))
+        return 21;
+    else if(!strncmp(buffer, "DESTROYED", 9))
         return 22;
     else
         return -1;
@@ -204,7 +204,7 @@ int Client::command_ingame(string message) {
         case 8: {
             cout << "You can now begin the war\n";
             cout << "To attack type 'ATTACK <x> <y>', where x and y are between 1 and 12.\n";
-            cout << "To move type 'MOVE <ship_id> <x> <y>'.\n";
+            cout << "To move type 'MOVE <ship_id> <(u)p, (d)own, (l)eft, (r)ight>'.\n";
             cout << "To scan type 'SCAN'.\n";
             turn = 1;
             break;
@@ -217,96 +217,123 @@ int Client::command_ingame(string message) {
             cout << message;
             break;
         }
-        case 12: { //TODO Look for fix for who hit
-            int x = check_crd(message.substr(11, 12));
-            int y;
-            if (x > 9)
-                y = check_crd(message.substr(14, 15));
-            else
-                y = check_crd(message.substr(13, 14));
+        //HIT
+        case 12: {
+            if (turn > 0) {
+                int x = check_crd(message.substr(4, 5));
+                int y;
+                if (x > 9)
+                    y = check_crd(message.substr(7, 8));
+                else
+                    y = check_crd(message.substr(6, 7));
 
-            //update_field(x, y, 'h');
-            view_field();
-            cout << "You got hit!\n";
-            turn = 0;
+                update_field(x, y, 0);
+                view_field();
+                cout << "You hit!\n";
+                turn = 0;
+            }
             break;
         }
+        //MISSED
         case 13: {
-            cout << "You missed!\n";
-            view_field();
-            turn = 0;
+            if (turn > 0) {
+                view_field();
+                cout << "You missed!\n";
+                turn = 0;
+            }
             break;
         }
+        //WIN
         case 14: {
             ingame = 0;
             cout << "You won the war!\n";
             break;
         }
+        //LOSE
         case 15: {
             ingame = 0;
             cout << "You lost the war!\n";
             break;
         }
+        //MOVE
         case 16: {
-            int id = message[12] - '0';
-            int x = check_crd(message.substr(13, 14));
-            int y;
-            if (x > 9)
-                y = check_crd(message.substr(16, 17));
-            else
-                y = check_crd(message.substr(15, 16));
+            if (turn > 0) {
+                int id = message[11] - '0';
+                int x = check_crd(message.substr(13, 14));
+                int y;
+                if (x > 9)
+                    y = check_crd(message.substr(16, 17));
+                else
+                    y = check_crd(message.substr(15, 16));
 
-            update_field(x, y, 2, id);
-            cout << "Moved the ship.\n";
-            view_field();
-            turn = 0;
+                update_field(x, y, 2, id);
+                view_field();
+                cout << "Moved the ship.\n";
+                turn = 0;
+            }
             break;
         }
+        //PLACE
         case 17: {
             int id = (int) message[12] - '0';
             int x = check_crd(message.substr(14, 15));
             int y;
-
-            ships[id].x = x;
-            ships[id].y = y;
 
             if (x > 9)
                 y = check_crd(message.substr(17, 18));
             else
                 y = check_crd(message.substr(16, 17));
 
+            ships[id].x = x;
+            ships[id].y = y;
+
             update_field(x, y, 3, id);
             view_field();
-            return 1;
+            break;
         }
+        //NEXT TURN
         case 18: {
             cout << message;
             turn = 1;
             break;
         }
+        //SCAN
         case 19: {
-            int x = check_crd(message.substr(5, 6));
-            int y;
-            if (x > 9)
-                y = check_crd(message.substr(8, 9));
-            else
-                y = check_crd(message.substr(7, 8));
+            if (turn > 0) {
+                int x = check_crd(message.substr(5, 6));
+                int y;
+                if (x > 9)
+                    y = check_crd(message.substr(8, 9));
+                else
+                    y = check_crd(message.substr(7, 8));
 
-            update_field(x, y, 1);
-            cout << "Found a ship.\n";
-            view_scan_field();
+                update_field(x, y, 1);
+                view_scan_field();
+                cout << "Found a ship.\n";
+                turn = 0;
+            }
             break;
         }
+        //INVALID
         case 20: {
-            cout << message;
+            cout << "Command format was wrong.\n";
             break;
         }
         case 21: {
             cout << message;
             break;
         }
+        //DESTROYED
         case 22: {
-            cout << message;
+            int id = (int) message[10] - '0';
+
+            int x = ships[id].x;
+            int y = ships[id].y;
+
+            update_field(x, y, 4, id);
+            view_field();
+            cout << "Own ship got destroyed.\n";
+            break;
         }
     }
     return 1;
@@ -325,7 +352,6 @@ int Client::tick() {
         }
 
         if(socketBuffer.hasLine()){
-            cout << "HAS line\n";
             string from_server;
             from_server = socketBuffer.readLine();
 
@@ -492,23 +518,28 @@ void Client::set_field() {
 
 void Client::update_field(int x, int y, int action, int id_s) {
     if (action == 0) {
-        enemyField[x][y] = 'X';
+        enemyField[x][y] = "X";
     } else if (action == 1) {
         copy(enemyField[0], enemyField[MAX_x], scanField[0]);
-        for (int i = -2; i < 3; ++i) {
-            for (int j = -2; j < 3; ++j) {
-                scanField[i + x][j + y] = '?';
+        for (int i = -1; i < 2; ++i) {
+            for (int j = -1; j < 2; ++j) {
+                if (i + x > 1 && j + y > 1 && j + y < MAX_y && i + x < MAX_x)
+                    scanField[i + x][j + y] = "?";
             }
         }
     } else if (action == 2) {
-        ownField[ships[id_s].x][ships[id_s].y] = '.';
-        ownField[x][y] = 'H';
-    }
-    else if (action == 3) {
+        cout << " x " << ships[id_s].x << " y " << ships[id_s].y;
+        ownField[ships[id_s].x][ships[id_s].y] = "o";
+        ownField[x][y] = "H";
         ships[id_s].x = x;
         ships[id_s].y = y;
+    } else if (action == 3) {
         ownField[x][y] = "H";
+    } else if (action == 4) {
+        cout << " x " << ships[id_s].x << " y " << ships[id_s].y;
+        ownField[x][y] = "X";
     }
+
     return;
 }
 
