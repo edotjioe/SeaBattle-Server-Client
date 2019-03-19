@@ -202,6 +202,7 @@ int main() {
     std::cout << "Setting up" << std::endl;
     client.setup();
     std::cout << "Running application" << std::endl;
+    std::cout << "You can join a lobby by typing LOBBY <number(0-9)>.\nBy typing LIST you can see the lobbies that are populatd." << endl;
     while (client.tick() >= 0) {
     // Wait for 100 milliseconds before checking for new input and messages.
     std::this_thread::sleep_for(std::chrono::milliseconds(100));
