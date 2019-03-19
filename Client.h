@@ -18,8 +18,8 @@
 #include "CircularLineBuffer.h"
 
 #define BUFFER_LENGTH 400
-#define MAX_x 12
-#define MAX_y 12
+#define MAX_x 13
+#define MAX_y 13
 
 using namespace std;
 
@@ -57,15 +57,15 @@ private:
     bool send_username();
     ConnStatus receive_response_from_server();
     void set_field();
-    void update_field(int x, int y, char action, int id_s = -1);
+    void update_field(int x, int y, int action, int id_s = -1);
     void view_field();
     void view_scan_field();
 
     ship ships[3];
 
-    char enemyField[MAX_x + 1][MAX_y + 1];
-    char scanField[MAX_x + 1][MAX_y + 1];
-    char ownField[MAX_x + 1][MAX_y + 1];
+    string enemyField[MAX_x + 1][MAX_y + 1];
+    string scanField[MAX_x + 1][MAX_y + 1];
+    string ownField[MAX_x + 1][MAX_y + 1];
 
     int ingame = 0;
     int turn = 1;

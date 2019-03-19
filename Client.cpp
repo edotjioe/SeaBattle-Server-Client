@@ -133,6 +133,12 @@ int Client::check_server_command(string message){
         return 18;
     else if(!strncmp(buffer, "SCAN", 4))
         return 19;
+    else if(!strncmp(buffer, "INVALID", 4))
+        return 20;
+    else if(!strncmp(buffer, "PLACE SHIP", 10))
+        return 21;
+    else if(!strncmp(buffer, "GAME STARTED", 12))
+        return 22;
     else
         return -1;
 }
@@ -141,7 +147,6 @@ int Client::check_server_command(string message){
 int Client::command_lobby(string message) {
     int action = check_server_command(message);
 
-    cout << "Test";
     switch (action) {
         case 2: {
             cout << message;
@@ -171,6 +176,9 @@ int Client::command_lobby(string message) {
             cout << "The game has started, please place 3 ships within the field of 12x12.\n";
             cout << "A ship can be placed by typing 'PLACE <ship_id> <x> <y>'. The ship id's are from 0 to 2.\n";
             cout << "To leave the game type 'LEAVE'\n";
+            set_field();
+            view_field();
+            ingame = 1;
             break;
         }
         case 9: {
@@ -186,6 +194,7 @@ int Client::command_lobby(string message) {
             break;
         }
     }
+    return 1;
 }
 
 int Client::command_ingame(string message) {
@@ -201,7 +210,11 @@ int Client::command_ingame(string message) {
             break;
         }
         case 9: {
-            set_field();
+            cout << message;
+            break;
+        }
+        case 10: {
+            cout << message;
             break;
         }
         case 12: { //TODO Look for fix for who hit
@@ -212,7 +225,8 @@ int Client::command_ingame(string message) {
             else
                 y = check_crd(message.substr(13, 14));
 
-            update_field(x, y, 'h');
+            //update_field(x, y, 'h');
+            view_field();
             cout << "You got hit!\n";
             turn = 0;
             break;
@@ -234,21 +248,22 @@ int Client::command_ingame(string message) {
             break;
         }
         case 16: {
-            int x = check_crd(message.substr(11, 12));
+            int id = message[12] - '0';
+            int x = check_crd(message.substr(13, 14));
             int y;
             if (x > 9)
-                y = check_crd(message.substr(14, 15));
+                y = check_crd(message.substr(16, 17));
             else
-                y = check_crd(message.substr(13, 14));
+                y = check_crd(message.substr(15, 16));
 
-            update_field(x, y, 'm');
+            update_field(x, y, 2, id);
             cout << "Moved the ship.\n";
             view_field();
             turn = 0;
             break;
         }
         case 17: {
-            int id = message[12];
+            int id = (int) message[12] - '0';
             int x = check_crd(message.substr(14, 15));
             int y;
 
@@ -260,18 +275,41 @@ int Client::command_ingame(string message) {
             else
                 y = check_crd(message.substr(16, 17));
 
-            update_field(x, y, 'p');
-            cout << "Placed the ship.\n";
+            update_field(x, y, 3, id);
             view_field();
-            turn = 0;
-            break;
+            return 1;
         }
         case 18: {
             cout << message;
             turn = 1;
             break;
         }
+        case 19: {
+            int x = check_crd(message.substr(5, 6));
+            int y;
+            if (x > 9)
+                y = check_crd(message.substr(8, 9));
+            else
+                y = check_crd(message.substr(7, 8));
+
+            update_field(x, y, 1);
+            cout << "Found a ship.\n";
+            view_scan_field();
+            break;
+        }
+        case 20: {
+            cout << message;
+            break;
+        }
+        case 21: {
+            cout << message;
+            break;
+        }
+        case 22: {
+            cout << message;
+        }
     }
+    return 1;
 }
 
 int Client::tick() {
@@ -287,20 +325,20 @@ int Client::tick() {
         }
 
         if(socketBuffer.hasLine()){
+            cout << "HAS line\n";
             string from_server;
             from_server = socketBuffer.readLine();
 
             if (ingame < 1) {
-                command_lobby(from_server);
+                int l = command_lobby(from_server);
             } else {
-                command_ingame(from_server);
+                int s = command_ingame(from_server);
             }
 
-            std::cout << "SERVER: " << from_server;
         }
         return 0;
     }
-    return -1;
+    return 1;
 }
 
 bool Client::quit(char msg[]) {
@@ -339,13 +377,13 @@ int Client::readFromSocket() {
 }
 
 int Client::readFromStdin() {
-    char input[4096];
+    char buffer[4096];
 
-    std::cin.getline(input,sizeof(input));
+    std::cin.getline(buffer,sizeof(buffer));
 
-    int length = strlen(input) + 1;
+    int length = strlen(buffer) + 1;
     char msg[length];
-    strcpy(msg, input);
+    strcpy(msg, buffer);
     msg[length - 1] = '\n';
     msg[length] = '\0';
 
@@ -425,102 +463,93 @@ void Client::closeSocket() {
 }
 
 void Client::set_field() {
-    for (int i = 1; i < MAX_x + 1; ++i) {
-        enemyField[i][0] = (char) i;
+    for (int i = 1; i < MAX_x; ++i) {
+        enemyField[i][0] = to_string(i);
     }
-    for (int j = 1; j < MAX_y + 1; ++j) {
-        enemyField[0][j] = (char) j;
-    }
-
-    for (int k = 1; k < MAX_x; ++k) {
-        for (int i = 1; i < MAX_y; ++i) {
-            enemyField[k][i] = '.';
-        }
-    }
-
-    for (int i = 1; i < MAX_x + 1; ++i) {
-        ownField[i][0] = (char) i;
-    }
-    for (int j = 1; j < MAX_y + 1; ++j) {
-        ownField[0][j] = (char) j;
+    for (int j = 1; j < MAX_y; ++j) {
+        enemyField[0][j] = to_string(j);
     }
 
     for (int k = 1; k < MAX_x; ++k) {
         for (int i = 1; i < MAX_y; ++i) {
-            ownField[k][i] = '.';
+            enemyField[k][i] = 'o';
         }
     }
 
-    for (int k = 0; k < MAX_x + 1; ++k) {
-        for (int i = 0; i < MAX_y + 1; ++i) {
-            cout << enemyField[k][i];
-        }
-        cout << endl;
+    for (int i = 1; i < MAX_x; ++i) {
+        ownField[i][0] = to_string(i);
+    }
+    for (int j = 1; j < MAX_y; ++j) {
+        ownField[0][j] = to_string(j);
     }
 
-    for (int k = 0; k < MAX_x + 1; ++k) {
-        for (int i = 0; i < MAX_y + 1; ++i) {
-            cout << ownField[k][i];
+    for (int k = 1; k < MAX_x; ++k) {
+        for (int i = 1; i < MAX_y; ++i) {
+            ownField[k][i] = 'o';
         }
-        cout << endl;
     }
 }
 
-void Client::update_field(int x, int y, char action, int id_s) {
-    if (action == 'h') {
+void Client::update_field(int x, int y, int action, int id_s) {
+    if (action == 0) {
         enemyField[x][y] = 'X';
-    } else if (action == 's') {
-        copy(enemyField[0], enemyField[MAX_x + 1], scanField[0]);
+    } else if (action == 1) {
+        copy(enemyField[0], enemyField[MAX_x], scanField[0]);
         for (int i = -2; i < 3; ++i) {
             for (int j = -2; j < 3; ++j) {
                 scanField[i + x][j + y] = '?';
             }
         }
-    } else if (action == 'm') {
-        
-    } else if (action == 'p') {
+    } else if (action == 2) {
+        ownField[ships[id_s].x][ships[id_s].y] = '.';
+        ownField[x][y] = 'H';
+    }
+    else if (action == 3) {
         ships[id_s].x = x;
         ships[id_s].y = y;
-        ownField[x][y] = 'H';
-        for (int k = 0; k < MAX_x + 1; ++k) {
-            for (int i = 0; i < MAX_y + 1; ++i) {
-                cout << enemyField[k][i];
-            }
-            cout << endl;
-        }
-
+        ownField[x][y] = "H";
     }
+    return;
 }
 
 void Client::view_field() {
     cout << "-------Enemy field----------" << endl;
-    for (int k = 0; k < MAX_x + 1; ++k) {
-        for (int i = 0; i < MAX_y + 1; ++i) {
-            cout << enemyField[k][i];
+    for (int k = 0; k < MAX_x ; ++k) {
+        for (int i = 0; i < MAX_y; ++i) {
+            cout << enemyField[k][i] << ' ';
+            if (k < 10 && i == 0)
+                cout << " ";
         }
         cout << endl;
     }
     cout << "-------Your field-----------" << endl;
-    for (int k = 0; k < MAX_x + 1; ++k) {
-        for (int i = 0; i < MAX_y + 1; ++i) {
-            cout << ownField[k][i];
+    for (int k = 0; k < MAX_x; ++k) {
+        for (int i = 0; i < MAX_y; ++i) {
+            cout << ownField[k][i] << ' ';
+            if (k < 10 && i == 0)
+                cout << " ";
         }
         cout << endl;
     }
+    return;
 }
 
 void Client::view_scan_field() {
     cout << "----Enemy field(scanned)----" << endl;
     for (int k = 0; k < MAX_x + 1; ++k) {
         for (int i = 0; i < MAX_y + 1; ++i) {
-            cout << scanField[k][i];
+            cout << scanField[k][i] << ' ';
+            if (k < 10 && i == 0)
+                cout << " ";
         }
         cout << endl;
     }
     cout << "-------Your field-----------" << endl;
     for (int k = 0; k < MAX_x + 1; ++k) {
         for (int i = 0; i < MAX_y + 1; ++i) {
-            cout << ownField[k][i];
+            cout << ownField[k][i] << ' ';
+            if (k < 10 && i == 0)
+                cout << " ";
         }
         cout << endl;
     }
